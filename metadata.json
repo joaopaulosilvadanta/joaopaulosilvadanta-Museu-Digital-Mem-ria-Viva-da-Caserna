@@ -1,0 +1,8 @@
+{
+  "name": "Museu Digital Memória Viva da Caserna",
+  "description": "Memorial digital dedicado à história e aos veteranos militares e da Guarda Territorial, com foco em preservação afetiva e acessibilidade.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
