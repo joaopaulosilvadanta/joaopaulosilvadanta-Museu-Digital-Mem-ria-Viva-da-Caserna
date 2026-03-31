@@ -1,6 +1,6 @@
 
-import { Veterano, Historia, LinhaDoTempo, Contribuicao, Profile, Viatura, Armamento } from '../types';
-import { MOCK_VETERANOS, MOCK_HISTORIAS, MOCK_LINHA_TEMPO, MOCK_CONTRIBUICOES, MOCK_VIATURAS, MOCK_ARMAMENTOS } from '../constants';
+import { Veterano, Historia, LinhaDoTempo, Contribuicao, Profile, Viatura, Armamento, UnidadePMRR } from '../types';
+import { MOCK_VETERANOS, MOCK_HISTORIAS, MOCK_LINHA_TEMPO, MOCK_CONTRIBUICOES, MOCK_VIATURAS, MOCK_ARMAMENTOS, MOCK_UNIDADES } from '../constants';
 
 class DatabaseService {
   private veteranos: Veterano[] = [...MOCK_VETERANOS];
@@ -9,6 +9,7 @@ class DatabaseService {
   private historias: Historia[] = [...MOCK_HISTORIAS.map(h => ({...h, autorizado_publicacao: true}))];
   private linhaDoTempo: LinhaDoTempo[] = [...MOCK_LINHA_TEMPO];
   private contribuicoes: Contribuicao[] = [...MOCK_CONTRIBUICOES];
+  private unidades: UnidadePMRR[] = [...MOCK_UNIDADES];
   private profiles: Profile[] = [
     { id: 'admin-1', nome: 'Cap João Paulo (TI/Admin)', email: 'admin@pm.rr.gov.br', role: 'admin' },
     { id: 'curador-1', nome: 'Ten Dra. Márcia (História)', email: 'curador@pm.rr.gov.br', role: 'curador' },
@@ -117,6 +118,14 @@ class DatabaseService {
 
   async getLinhaDoTempo() { 
     return this.linhaDoTempo.sort((a, b) => a.ano - b.ano); 
+  }
+
+  async getUnidades() {
+    return this.unidades;
+  }
+
+  async getUnidadeById(id: string) {
+    return this.unidades.find(u => u.id === id) || null;
   }
 }
 

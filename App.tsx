@@ -17,7 +17,9 @@ import {
   Lock,
   Truck,
   Crosshair,
-  Star
+  Star,
+  Building2,
+  Library
 } from 'lucide-react';
 
 import { APP_TITLE, DEVELOPER_SIG } from './constants';
@@ -38,6 +40,10 @@ import SubmitPage from './pages/SubmitPage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import AnalysisPage from './pages/AnalysisPage';
+import UnitsPage from './pages/UnitsPage';
+import UnitDetailPage from './pages/UnitDetailPage';
+import CollectionsPage from './pages/CollectionsPage';
+import NormasCuradoria from './pages/NormasCuradoria';
 
 const Navbar = ({ user, onLogout }: { user: Profile | null, onLogout: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,11 +55,11 @@ const Navbar = ({ user, onLogout }: { user: Profile | null, onLogout: () => void
 
   const navItems = [
     { label: 'Início', path: AppRoute.HOME, icon: <Home size={18}/> },
+    { label: 'Unidades', path: AppRoute.UNITS, icon: <Building2 size={18}/> },
+    { label: 'Coleções', path: AppRoute.COLLECTIONS, icon: <Library size={18}/> },
     { label: 'Veteranos', path: AppRoute.GALLERY, icon: <Users size={18}/> },
     { label: 'Destaque', path: AppRoute.MONTHLY, icon: <Star size={18}/> },
-    { label: 'Viaturas', path: AppRoute.VEHICLES, icon: <Truck size={18}/> },
-    { label: 'Armamento', path: AppRoute.WEAPONS, icon: <Crosshair size={18}/> },
-    { label: 'História', path: AppRoute.TIMELINE, icon: <History size={18}/> },
+    { label: 'Acervo', path: AppRoute.TIMELINE, icon: <History size={18}/> },
     { label: 'Mapa', path: AppRoute.MAP, icon: <MapIcon size={18}/> },
   ];
 
@@ -173,6 +179,10 @@ const App: React.FC = () => {
         <main className="flex-grow">
           <Routes>
             <Route path={AppRoute.HOME} element={<HomePage />} />
+            <Route path={AppRoute.UNITS} element={<UnitsPage />} />
+            <Route path={AppRoute.COLLECTIONS} element={<CollectionsPage />} />
+            <Route path={AppRoute.NORMAS} element={<NormasCuradoria />} />
+            <Route path={AppRoute.UNIT_DETAIL} element={<UnitDetailPage />} />
             <Route path={AppRoute.GALLERY} element={<GalleryPage />} />
             <Route path={AppRoute.MONTHLY} element={<MonthlyHistoryPage />} />
             <Route path={AppRoute.VEHICLES} element={<VehiclesPage />} />
@@ -197,7 +207,10 @@ const App: React.FC = () => {
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-2">{DEVELOPER_SIG}</p>
-              <p className="text-xs">© 2026 - Museu Digital da Memória Viva</p>
+              <p className="text-xs mb-4">© 2026 - Museu Digital da Memória Viva</p>
+              <Link to={AppRoute.NORMAS} className="text-[10px] text-indigo-400 hover:text-amber-400 underline transition-colors">
+                Normas de Curadoria e Direitos
+              </Link>
             </div>
           </div>
         </footer>

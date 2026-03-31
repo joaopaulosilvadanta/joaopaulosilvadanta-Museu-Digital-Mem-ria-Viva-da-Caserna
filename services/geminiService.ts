@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
 export const chatWithMemoryBot = async (history: string[], userMessage: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const model = 'gemini-3-flash-preview';
   
   const systemInstruction = `
@@ -38,7 +38,7 @@ export const chatWithMemoryBot = async (history: string[], userMessage: string) 
 };
 
 export const speakMemory = async (text: string): Promise<Uint8Array | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -71,7 +71,7 @@ export const speakMemory = async (text: string): Promise<Uint8Array | null> => {
 };
 
 export const analyzeMemoryImage = async (base64Image: string, mimeType: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const model = 'gemini-3-pro-preview';
 
   const systemInstruction = `

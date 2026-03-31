@@ -32,7 +32,8 @@ const MonthlyHistoryPage: React.FC = () => {
   const handleSpeak = async () => {
     if (!featuredStory || isSpeaking) return;
     setIsSpeaking(true);
-    const audioData = await speakMemory(featuredStory.descricao || '');
+    const textToSpeak = featuredStory.conteudo_editorial || featuredStory.descricao || '';
+    const audioData = await speakMemory(textToSpeak);
     if (audioData) {
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioContextClass();
@@ -81,9 +82,14 @@ const MonthlyHistoryPage: React.FC = () => {
             </div>
             <span className="text-xs font-black uppercase tracking-[0.4em] text-indigo-950">História do Mês • Janeiro 2026</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-indigo-950 serif-font mb-6 leading-tight max-w-3xl">
+          <h1 className="text-5xl md:text-7xl font-bold text-indigo-950 serif-font mb-4 leading-tight max-w-3xl">
             {featuredStory.titulo}
           </h1>
+          {featuredStory.subtitulo && (
+            <p className="text-xl md:text-2xl text-indigo-900/70 serif-font italic mb-8 max-w-2xl">
+              {featuredStory.subtitulo}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-6 text-slate-500 text-sm font-medium">
             <div className="flex items-center gap-2">
               <Calendar size={18} className="text-amber-500" /> Publicado em {featuredStory.data}
@@ -125,7 +131,7 @@ const MonthlyHistoryPage: React.FC = () => {
             <div className="relative mb-12">
               <Quote className="absolute -top-6 -left-10 text-indigo-50 w-32 h-32 -z-10" />
               <div className="serif-font text-xl md:text-2xl text-slate-700 leading-relaxed first-letter:text-7xl first-letter:font-bold first-letter:text-indigo-950 first-letter:mr-3 first-letter:float-left drop-cap whitespace-pre-wrap">
-                {featuredStory.descricao}
+                {featuredStory.conteudo_editorial || featuredStory.descricao}
               </div>
             </div>
 

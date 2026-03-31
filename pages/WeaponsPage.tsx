@@ -1,31 +1,40 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../services/databaseService';
-import { Armamento } from '../types';
+import { Armamento, SearchFilters } from '../types';
 import { Search, Crosshair, Calendar, Info, Volume2, Shield, Target, Filter } from 'lucide-react';
 import { speakMemory } from '../services/geminiService';
+import { LazyImage } from '../components/LazyImage';
+import { SearchFilterBar } from '../components/SearchFilterBar';
 
 const WeaponsPage: React.FC = () => {
   const [armamentos, setArmamentos] = useState<Armamento[]>([]);
-  const [filter, setFilter] = useState<string>('Todos');
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<SearchFilters>({});
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     db.getArmamentos().then(setArmamentos);
   }, []);
 
-  const categories = ['Todos', 'Pistola', 'Fuzil', 'Metralhadora', 'Revólver', 'Especial'];
+  const filteredWeapons = useMemo(() => {
+    return armamentos.filter(a => {
+      const matchesType = !filters.tipo || a.tipo === filters.tipo;
+      const matchesStatus = !filters.status || a.status === filters.status;
+      const matchesCalibre = !filters.calibre || a.calibre === filters.calibre;
+      const matchesFabricante = !filters.fabricante || a.fabricante === filters.fabricante;
+      
+      const searchTerm = (filters.query || '').toLowerCase();
+      const matchesSearch = !searchTerm || 
+                            a.nome.toLowerCase().includes(searchTerm) || 
+                            a.calibre.toLowerCase().includes(searchTerm) ||
+                            a.fabricante.toLowerCase().includes(searchTerm) ||
+                            a.descricao.toLowerCase().includes(searchTerm);
+      return matchesType && matchesStatus && matchesSearch && matchesCalibre && matchesFabricante;
+    });
+  }, [armamentos, filters]);
 
-  const filteredWeapons = armamentos.filter(a => {
-    const matchesFilter = filter === 'Todos' || a.tipo === filter;
-    const searchTerm = search.toLowerCase();
-    const matchesSearch = a.nome.toLowerCase().includes(searchTerm) || 
-                          a.calibre.toLowerCase().includes(searchTerm) ||
-                          a.fabricante.toLowerCase().includes(searchTerm) ||
-                          a.descricao.toLowerCase().includes(searchTerm);
-    return matchesFilter && matchesSearch;
-  });
+  const calibres = Array.from(new Set(armamentos.map(a => a.calibre))).filter(Boolean);
+  const fabricantes = Array.from(new Set(armamentos.map(a => a.fabricante))).filter(Boolean);
 
   const handleSpeak = async (text: string) => {
     if (isSpeaking) return;
@@ -59,43 +68,34 @@ const WeaponsPage: React.FC = () => {
         <p className="text-slate-600 max-w-2xl">A evolução tecnológica do poder de fogo e defesa institucional, desde os calibres clássicos aos sistemas modernos.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-10">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Pesquisar armamento, calibre ou fabricante..."
-            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all ${
-                filter === cat ? 'bg-indigo-900 text-white shadow-lg' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SearchFilterBar 
+        filters={filters}
+        onFilterChange={setFilters}
+        availableFilters={['query', 'tipo', 'status', 'calibre', 'fabricante']}
+        filterOptions={{
+          tipo: ['Pistola', 'Fuzil', 'Metralhadora', 'Revólver', 'Especial'],
+          status: ['Histórico', 'Acervo', 'Moderno'],
+          calibre: calibres,
+          fabricante: fabricantes
+        }}
+        placeholder="Pesquisar armamento, calibre ou fabricante..."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredWeapons.map(a => (
           <div key={a.id} className="group bg-white rounded-[2.5rem] overflow-hidden shadow-md hover:shadow-2xl transition-all border border-slate-100 flex flex-col">
-            <div className="relative h-64 overflow-hidden bg-slate-100">
-              <img src={a.foto_url} alt={a.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-              <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 backdrop-blur-md text-white ${
+            <div className="relative h-64 bg-slate-100">
+              <LazyImage 
+                src={a.foto_url} 
+                alt={a.nome} 
+                className="w-full h-full transition-transform duration-700 group-hover:scale-110" 
+              />
+              <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 backdrop-blur-md text-white z-10 ${
                 a.status === 'Histórico' ? 'bg-amber-600/80' : a.status === 'Acervo' ? 'bg-indigo-950/80' : 'bg-green-600/80'
               }`}>
                 {a.status}
               </div>
-              <div className="absolute bottom-4 right-6 bg-white/90 backdrop-blur text-indigo-950 px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
+              <div className="absolute bottom-4 right-6 bg-white/90 backdrop-blur text-indigo-950 px-3 py-1 rounded-lg text-xs font-bold shadow-sm z-10">
                 {a.calibre}
               </div>
             </div>
@@ -130,7 +130,6 @@ const WeaponsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Armament Safety & History Banner */}
       <div className="mt-16 bg-slate-900 rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden border border-slate-800 shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">

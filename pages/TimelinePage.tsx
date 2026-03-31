@@ -1,13 +1,15 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/databaseService';
-import { LinhaDoTempo, Historia, AppRoute } from '../types';
-import { Shield, History, ArrowRight, ExternalLink, MapPin, FileText, Mic, Video, Share2, Check } from 'lucide-react';
+import { LinhaDoTempo, Historia, AppRoute, SearchFilters } from '../types';
+import { Shield, History, ArrowRight, ExternalLink, MapPin, FileText, Mic, Video, Share2, Check, Search, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SearchFilterBar } from '../components/SearchFilterBar';
 
 const TimelinePage: React.FC = () => {
   const [timeline, setTimeline] = useState<LinhaDoTempo[]>([]);
   const [historias, setHistorias] = useState<Historia[]>([]);
+  const [filters, setFilters] = useState<SearchFilters>({});
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +23,22 @@ const TimelinePage: React.FC = () => {
     };
     loadData();
   }, []);
+
+  const filteredTimeline = useMemo(() => {
+    return timeline.filter(event => {
+      const searchTerm = (filters.query || '').toLowerCase();
+      const matchesSearch = !searchTerm || 
+                            event.titulo.toLowerCase().includes(searchTerm) || 
+                            event.descricao.toLowerCase().includes(searchTerm) ||
+                            event.ano.toString().includes(searchTerm);
+      
+      const matchesYear = !filters.ano || event.ano.toString() === filters.ano.toString();
+      
+      return matchesSearch && matchesYear;
+    }).sort((a, b) => a.ano - b.ano);
+  }, [timeline, filters]);
+
+  const availableYears = Array.from(new Set(timeline.map(t => t.ano.toString()))).sort();
 
   const getHistoriaForMarco = (historiaId?: string) => {
     return historias.find(h => h.id === historiaId);
@@ -46,11 +64,23 @@ const TimelinePage: React.FC = () => {
         <p className="text-slate-600 max-w-2xl mx-auto">Dos primeiros passos da Guarda Territorial à consolidação da Polícia Militar, conectando fatos a memórias reais.</p>
       </div>
 
+      <div className="mb-12 max-w-2xl mx-auto">
+        <SearchFilterBar 
+          filters={filters}
+          onFilterChange={setFilters}
+          availableFilters={['query', 'ano']}
+          filterOptions={{
+            ano: availableYears
+          }}
+          placeholder="Pesquisar fatos, anos ou descrições..."
+        />
+      </div>
+
       <div className="relative">
         <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-indigo-100 hidden md:block"></div>
 
         <div className="space-y-12 md:space-y-20">
-          {timeline.map((event, idx) => {
+          {filteredTimeline.map((event, idx) => {
             const h = getHistoriaForMarco(event.historia_id);
             return (
               <div key={event.id} className={`flex flex-col md:flex-row items-center w-full relative ${idx % 2 === 0 ? 'md:flex-row-reverse' : ''}`}>
@@ -113,6 +143,14 @@ const TimelinePage: React.FC = () => {
               </div>
             );
           })}
+
+          {filteredTimeline.length === 0 && (
+            <div className="py-20 text-center bg-white rounded-[3rem] border border-dashed border-slate-200">
+               <Filter size={48} className="mx-auto text-slate-200 mb-4" />
+               <p className="text-slate-400 font-medium">Nenhum evento encontrado para os critérios selecionados.</p>
+               <button onClick={() => setFilters({})} className="mt-4 text-indigo-600 font-bold hover:underline">Limpar Filtros</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,27 +1,61 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../services/databaseService';
-import { Veterano, Historia, AppRoute } from '../types';
+import { Veterano, Historia, AppRoute, SearchFilters } from '../types';
 import { 
   Search, Volume2, Info, X, Play, Pause, History, Calendar, 
   FileText, Video, Mic, MapPin, ZoomIn, ZoomOut, 
   ChevronRight, Share2, Check, ImageIcon, ArrowUpDown, Shield,
-  Filter
+  Filter, Navigation
 } from 'lucide-react';
 import { speakMemory } from '../services/geminiService';
+import { LazyImage } from '../components/LazyImage';
+import { SearchFilterBar } from '../components/SearchFilterBar';
 
 const MiniStoryMap: React.FC<{ location: string }> = ({ location }) => {
   const [zoom, setZoom] = useState(1);
   return (
-    <div className="mt-4 rounded-3xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 relative h-40 group">
-      <div className="absolute inset-0 transition-transform duration-500 flex items-center justify-center grayscale opacity-40 group-hover:grayscale-0" style={{ transform: `scale(${zoom})` }}>
-        <img src={`https://picsum.photos/seed/${location}/800/400?blur=2`} alt="Mapa" className="w-full h-full object-cover" />
+    <div className="mt-6 rounded-[2rem] overflow-hidden border border-slate-200 shadow-inner bg-slate-100 relative h-48 group">
+      <div className="absolute inset-0 transition-transform duration-1000 flex items-center justify-center grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-80" style={{ transform: `scale(${zoom + 0.2})` }}>
+        <img src={`https://picsum.photos/seed/${location}/800/400?blur=1`} alt="Mapa de Contexto" className="w-full h-full object-cover" />
       </div>
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-950/20"></div>
+      
+      {/* Marcador Central */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="bg-amber-500 p-1.5 rounded-full shadow-2xl ring-4 ring-amber-500/30">
-          <MapPin size={16} className="text-indigo-950" />
+        <div className="relative">
+          <div className="absolute -inset-4 bg-amber-500/20 rounded-full animate-ping"></div>
+          <div className="bg-amber-500 p-2 rounded-full shadow-2xl ring-4 ring-white relative z-10">
+            <MapPin size={20} className="text-indigo-950" />
+          </div>
         </div>
+      </div>
+
+      {/* Info Overlay */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+        <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-xl shadow-sm border border-white/50 flex items-center gap-2">
+          <Navigation size={12} className="text-indigo-600" />
+          <span className="text-[10px] font-black text-indigo-950 uppercase tracking-tighter">{location}</span>
+        </div>
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setZoom(prev => Math.min(prev + 0.2, 2)); }}
+            className="p-2 bg-white/90 backdrop-blur rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all"
+          >
+            <ZoomIn size={14} />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setZoom(prev => Math.max(prev - 0.2, 1)); }}
+            className="p-2 bg-white/90 backdrop-blur rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-all"
+          >
+            <ZoomOut size={14} />
+          </button>
+        </div>
+      </div>
+      
+      <div className="absolute bottom-4 left-4">
+        <span className="text-[8px] font-black text-white/80 uppercase tracking-[0.2em] drop-shadow-md">Coordenadas Históricas Aproximadas</span>
       </div>
     </div>
   );
@@ -30,10 +64,8 @@ const MiniStoryMap: React.FC<{ location: string }> = ({ location }) => {
 const GalleryPage: React.FC = () => {
   const [veteranos, setVeteranos] = useState<Veterano[]>([]);
   const [historias, setHistorias] = useState<{[key: string]: Historia[]}>({});
-  const [filter, setFilter] = useState<string>('Todos');
-  const [mediaFilter, setMediaFilter] = useState<string>('Todas');
+  const [filters, setFilters] = useState<SearchFilters>({});
   const [sortBy, setSortBy] = useState<string>('nome-asc');
-  const [search, setSearch] = useState('');
   const [selectedVeteran, setSelectedVeteran] = useState<Veterano | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
@@ -53,30 +85,32 @@ const GalleryPage: React.FC = () => {
     loadData();
   }, []);
 
-  const filteredAndSortedVeterans = [...veteranos]
-    .filter((v: Veterano) => {
-      const matchesFilter = filter === 'Todos' || v.origem === filter;
-      
-      // Filtro por tipo de mídia no acervo do veterano
-      const veteranStories = historias[v.id] || [];
-      const matchesMedia = mediaFilter === 'Todas' || 
-        veteranStories.some(h => h.tipo.toLowerCase() === mediaFilter.toLowerCase());
+  const filteredAndSortedVeterans = useMemo(() => {
+    return [...veteranos]
+      .filter((v: Veterano) => {
+        const matchesOrigem = !filters.origem || v.origem === filters.origem;
+        
+        const veteranStories = historias[v.id] || [];
+        const matchesMedia = !filters.tipo || 
+          veteranStories.some(h => h.tipo.toLowerCase() === filters.tipo?.toLowerCase());
 
-      const searchTerm = search.toLowerCase();
-      const matchesBasic = v.nome.toLowerCase().includes(searchTerm) || 
-                          (v.patente || '').toLowerCase().includes(searchTerm);
-      
-      return matchesFilter && matchesMedia && matchesBasic;
-    })
-    .sort((a: Veterano, b: Veterano) => {
-      if (sortBy === 'nome-asc') return a.nome.localeCompare(b.nome);
-      if (sortBy === 'nome-desc') return b.nome.localeCompare(a.nome);
-      const dateA = a.data_ingresso ? new Date(a.data_ingresso).getTime() : 0;
-      const dateB = b.data_ingresso ? new Date(b.data_ingresso).getTime() : 0;
-      if (sortBy === 'date-desc') return dateB - dateA;
-      if (sortBy === 'date-asc') return dateA - dateB;
-      return 0;
-    });
+        const searchTerm = (filters.query || '').toLowerCase();
+        const matchesSearch = !searchTerm || 
+                            v.nome.toLowerCase().includes(searchTerm) || 
+                            (v.patente || '').toLowerCase().includes(searchTerm);
+        
+        return matchesOrigem && matchesMedia && matchesSearch;
+      })
+      .sort((a: Veterano, b: Veterano) => {
+        if (sortBy === 'nome-asc') return a.nome.localeCompare(b.nome);
+        if (sortBy === 'nome-desc') return b.nome.localeCompare(a.nome);
+        const dateA = a.data_ingresso ? new Date(a.data_ingresso).getTime() : 0;
+        const dateB = b.data_ingresso ? new Date(b.data_ingresso).getTime() : 0;
+        if (sortBy === 'date-desc') return dateB - dateA;
+        if (sortBy === 'date-asc') return dateA - dateB;
+        return 0;
+      });
+  }, [veteranos, historias, filters, sortBy]);
 
   const handleSpeak = async (text: string) => {
     if (isSpeaking) return;
@@ -114,62 +148,43 @@ const GalleryPage: React.FC = () => {
         <p className="text-slate-600 max-w-2xl">Preservando os rostos e as vozes daqueles que serviram ao Território e ao Estado.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-10">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Pesquisar por nome ou patente..." 
-            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all" 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
+      <div className="flex flex-col md:flex-row gap-4 mb-10 items-end">
+        <div className="flex-grow">
+          <SearchFilterBar 
+            filters={filters}
+            onFilterChange={setFilters}
+            availableFilters={['query', 'origem', 'tipo']}
+            filterOptions={{
+              origem: ['Guarda Territorial', 'Polícia Militar'],
+              tipo: ['Texto', 'Áudio', 'Vídeo', 'Imagem']
+            }}
+            placeholder="Pesquisar por nome ou patente..."
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Filtro de Instituição */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-            <Shield size={16} className="text-indigo-600" />
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-transparent border-none text-xs font-bold text-slate-700 outline-none cursor-pointer">
-              <option value="Todos">Todas Instituições</option>
-              <option value="Guarda Territorial">Guarda Territorial</option>
-              <option value="Polícia Militar">Polícia Militar</option>
-            </select>
-          </div>
-
-          {/* NOVO: Filtro de Mídia */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-            <Filter size={16} className="text-amber-500" />
-            <select value={mediaFilter} onChange={(e) => setMediaFilter(e.target.value)} className="bg-transparent border-none text-xs font-bold text-slate-700 outline-none cursor-pointer">
-              <option value="Todas">Todos Arquivos</option>
-              <option value="Texto">Apenas Texto</option>
-              <option value="Áudio">Apenas Áudio</option>
-              <option value="Vídeo">Apenas Vídeo</option>
-              <option value="Imagem">Apenas Imagem</option>
-            </select>
-          </div>
-
-          {/* Ordenação */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-            <ArrowUpDown size={16} className="text-slate-400" />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-transparent border-none text-xs font-bold text-slate-700 outline-none cursor-pointer">
-              <option value="nome-asc">Nome (A-Z)</option>
-              <option value="nome-desc">Nome (Z-A)</option>
-              <option value="date-desc">Recentes</option>
-              <option value="date-asc">Antigos</option>
-            </select>
-          </div>
+        
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-3 shadow-sm mb-8 h-[54px]">
+          <ArrowUpDown size={16} className="text-slate-400" />
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-transparent border-none text-xs font-bold text-slate-700 outline-none cursor-pointer">
+            <option value="nome-asc">Nome (A-Z)</option>
+            <option value="nome-desc">Nome (Z-A)</option>
+            <option value="date-desc">Recentes</option>
+            <option value="date-asc">Antigos</option>
+          </select>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredAndSortedVeterans.map((v: Veterano) => (
           <div key={v.id} className="group bg-white rounded-[2.5rem] overflow-hidden shadow-md hover:shadow-2xl transition-all border border-slate-100 flex flex-col relative">
-            <div className="relative h-72 overflow-hidden">
-              <img src={v.foto_url} alt={v.nome} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
-              <div className="absolute top-6 right-6 bg-indigo-950/80 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">{v.origem}</div>
+            <div className="relative h-72">
+              <LazyImage 
+                src={v.foto_url} 
+                alt={v.nome} 
+                className="w-full h-full grayscale group-hover:grayscale-0 transition-all duration-700" 
+              />
+              <div className="absolute top-6 right-6 bg-indigo-950/80 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest z-10">{v.origem}</div>
               
-              {/* Badges de mídia disponíveis */}
-              <div className="absolute bottom-4 left-6 flex gap-1">
+              <div className="absolute bottom-4 left-6 flex gap-1 z-10">
                 {historias[v.id]?.some(h => h.tipo === 'vídeo') && <div className="p-1.5 bg-indigo-600/90 text-white rounded-lg backdrop-blur-sm shadow-lg"><Video size={14}/></div>}
                 {historias[v.id]?.some(h => h.tipo === 'áudio') && <div className="p-1.5 bg-amber-500/90 text-white rounded-lg backdrop-blur-sm shadow-lg"><Mic size={14}/></div>}
                 {historias[v.id]?.some(h => h.tipo === 'imagem') && <div className="p-1.5 bg-slate-100/90 text-slate-900 rounded-lg backdrop-blur-sm shadow-lg"><ImageIcon size={14}/></div>}
@@ -195,7 +210,7 @@ const GalleryPage: React.FC = () => {
           <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border border-dashed border-slate-200">
              <Filter size={48} className="mx-auto text-slate-200 mb-4" />
              <p className="text-slate-400 font-medium">Nenhum veterano encontrado com os filtros selecionados.</p>
-             <button onClick={() => { setFilter('Todos'); setMediaFilter('Todas'); setSearch(''); }} className="mt-4 text-indigo-600 font-bold hover:underline">Limpar Filtros</button>
+             <button onClick={() => setFilters({})} className="mt-4 text-indigo-600 font-bold hover:underline">Limpar Filtros</button>
           </div>
         )}
       </div>
@@ -206,7 +221,7 @@ const GalleryPage: React.FC = () => {
             <button onClick={() => setSelectedVeteran(null)} className="absolute top-8 right-8 p-3 bg-slate-100 hover:bg-red-500 hover:text-white rounded-full z-20"><X size={24} /></button>
             <div className="flex flex-col lg:flex-row h-full">
               <div className="lg:w-2/5 min-h-[400px]">
-                <img src={selectedVeteran.foto_url} alt={selectedVeteran.nome} className="w-full h-full object-cover" />
+                <LazyImage src={selectedVeteran.foto_url} alt={selectedVeteran.nome} className="w-full h-full" />
               </div>
               <div className="lg:w-3/5 p-8 lg:p-12 overflow-y-auto max-h-[90vh]">
                 <div className="mb-12">
@@ -217,33 +232,54 @@ const GalleryPage: React.FC = () => {
                   <p className="text-slate-700 leading-relaxed text-lg serif-font italic">"{selectedVeteran.bio}"</p>
                 </div>
                 <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-6 border-b pb-2">Memórias e Registros ({historias[selectedVeteran.id]?.length || 0})</h4>
-                <div className="space-y-6">
+                <div className="space-y-12">
                   {(historias[selectedVeteran.id] || []).map(h => (
-                    <div key={h.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                    <div key={h.id} className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] border border-slate-100 relative group/story-item">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-                          {h.tipo === 'áudio' ? <Mic size={18}/> : h.tipo === 'vídeo' ? <Video size={18}/> : h.tipo === 'imagem' ? <ImageIcon size={18}/> : <FileText size={18}/>}
+                        <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-2xl">
+                          {h.tipo === 'áudio' ? <Mic size={20}/> : h.tipo === 'vídeo' ? <Video size={20}/> : h.tipo === 'imagem' ? <ImageIcon size={20}/> : <FileText size={20}/>}
                         </div>
-                        <h5 className="font-bold text-indigo-950">{h.titulo}</h5>
+                        <div>
+                          <h5 className="font-bold text-indigo-950 text-lg serif-font leading-tight">{h.titulo}</h5>
+                          {h.data && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ano: {new Date(h.data).getFullYear()}</span>}
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-600 mb-4">{h.descricao}</p>
-                      {h.arquivo_url && h.tipo === 'imagem' && <img src={h.arquivo_url} className="w-full rounded-2xl shadow-sm"/>}
-                      {h.arquivo_url && h.tipo === 'vídeo' && (
-                        <div className="relative group/video">
-                          <video 
-                            src={h.arquivo_url} 
-                            controls 
-                            className="w-full rounded-2xl shadow-md border border-slate-200 bg-black aspect-video"
-                            poster={`https://picsum.photos/seed/${h.id}/800/450?grayscale`}
-                          />
-                        </div>
-                      )}
-                      {h.arquivo_url && h.tipo === 'áudio' && (
-                        <button onClick={() => toggleAudio(h.id)} className="flex items-center gap-3 bg-indigo-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-800 transition-colors">
-                          {playingAudioId === h.id ? <Pause size={14}/> : <Play size={14}/>} Ouvir Relato
-                          <audio ref={el => audioRefs.current[h.id] = el} src={h.arquivo_url} onEnded={() => setPlayingAudioId(null)} className="hidden"/>
-                        </button>
-                      )}
+                      
+                      <p className="text-sm text-slate-600 mb-6 leading-relaxed italic">"{h.descricao}"</p>
+                      
+                      <div className="space-y-4">
+                        {h.arquivo_url && h.tipo === 'imagem' && <LazyImage src={h.arquivo_url} className="w-full rounded-3xl shadow-md border-4 border-white" />}
+                        
+                        {h.arquivo_url && h.tipo === 'vídeo' && (
+                          <div className="relative group/video rounded-3xl overflow-hidden shadow-lg">
+                            <video 
+                              src={h.arquivo_url} 
+                              controls 
+                              className="w-full aspect-video bg-black"
+                              poster={`https://picsum.photos/seed/${h.id}/800/450?grayscale`}
+                            />
+                          </div>
+                        )}
+                        
+                        {h.arquivo_url && h.tipo === 'áudio' && (
+                          <button onClick={() => toggleAudio(h.id)} className="flex items-center gap-3 bg-indigo-900 text-white px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-800 transition-all shadow-md shadow-indigo-900/10 active:scale-95">
+                            {playingAudioId === h.id ? <Pause size={16}/> : <Play size={16}/>} 
+                            <span>{playingAudioId === h.id ? 'Pausar Relato' : 'Ouvir Relato em Áudio'}</span>
+                            <audio ref={el => { audioRefs.current[h.id] = el; }} src={h.arquivo_url} onEnded={() => setPlayingAudioId(null)} className="hidden"/>
+                          </button>
+                        )}
+                        
+                        {/* Map Integration for Story Detail */}
+                        {h.localizacao && (
+                          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                             <div className="flex items-center gap-2 mb-2 px-1">
+                               <MapPin size={14} className="text-amber-500" />
+                               <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Local do Registro</span>
+                             </div>
+                             <MiniStoryMap location={h.localizacao} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

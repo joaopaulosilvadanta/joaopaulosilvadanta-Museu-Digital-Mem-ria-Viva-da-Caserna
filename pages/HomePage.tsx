@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AppRoute } from '../types';
-import { PlayCircle, Users, Map as MapIcon, History, ArrowRight, Quote } from 'lucide-react';
+import { PlayCircle, Users, Map as MapIcon, History, ArrowRight, Quote, Building2, Truck, Crosshair } from 'lucide-react';
 
 const HomePage: React.FC = () => {
   return (
@@ -52,6 +52,12 @@ const HomePage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <FeatureCard 
+            icon={<Building2 className="text-amber-500"/>}
+            title="Unidades Institucionais"
+            desc="Conheça a história e a estrutura do Comando Geral, Batalhões e Departamentos da PMRR."
+            link={AppRoute.UNITS}
+          />
+          <FeatureCard 
             icon={<Users className="text-amber-500"/>}
             title="Galeria de Honra"
             desc="Perfis detalhados dos homens e mulheres que construíram a segurança institucional."
@@ -62,6 +68,18 @@ const HomePage: React.FC = () => {
             title="Linha do Tempo"
             desc="Dos primeiros passos da Guarda Territorial aos desafios modernos das forças militares."
             link={AppRoute.TIMELINE}
+          />
+          <FeatureCard 
+            icon={<Truck className="text-amber-500"/>}
+            title="Viaturas Históricas"
+            desc="O acervo motorizado que patrulhou as ruas e fronteiras de Roraima ao longo das décadas."
+            link={AppRoute.VEHICLES}
+          />
+          <FeatureCard 
+            icon={<Crosshair className="text-amber-500"/>}
+            title="Armamento e Equipamento"
+            desc="A evolução tecnológica dos meios de defesa e proteção da sociedade roraimense."
+            link={AppRoute.WEAPONS}
           />
           <FeatureCard 
             icon={<MapIcon className="text-amber-500"/>}
